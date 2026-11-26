@@ -108,8 +108,8 @@ python -m src.train --model convnextv2 --strategy feature_extraction --data-root
 python -m src.train --model alexnet --strategy full_finetune --epochs 1 --max-batches 2
 ```
 
-On Colab, use [`notebooks/01_train_colab.ipynb`](notebooks/01_train_colab.ipynb) (choose `MODEL` and
-`STRATEGY` in the first cell). Each run saves its learning curves, confusion matrix, test metrics
+On Colab, use [`notebooks/01_train_colab.ipynb`](notebooks/01_train_colab.ipynb) (choose `MODEL` in the first cell;
+its 3 strategies are trained one after the other). Each run saves its learning curves, confusion matrix, test metrics
 (accuracy, macro precision/recall/F1, AUC), parameter count, training time, peak GPU memory,
 inference latency and test predictions, and logs them to MLflow.
 
