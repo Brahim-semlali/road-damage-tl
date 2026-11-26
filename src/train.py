@@ -65,7 +65,10 @@ def load_config() -> dict:
     ap.add_argument("--num-workers", type=int)
     ap.add_argument("--no-pretrained", action="store_true", help="random init (debug only)")
     ap.add_argument("--max-batches", type=int, default=0, help="debug: limit batches per epoch")
-    ap.add_argument("--mlflow-uri", default=None, help="e.g. file:/content/drive/MyDrive/.../mlruns")
+    ap.add_argument("--mlflow-uri", default=None,
+                    help="tracking DB, e.g. sqlite:////content/drive/MyDrive/road-damage-tl/mlflow.db")
+    ap.add_argument("--mlflow-artifacts", default=None,
+                    help="folder for MLflow artifacts (used when the experiment is created)")
     a = ap.parse_args()
 
     cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
@@ -83,8 +86,43 @@ def load_config() -> dict:
         cfg["strategy"] = "from_scratch"
     t["accum_steps"] = a.accum_steps
     cfg.update(timm_name=a.timm_name, data_root=a.data_root, out=a.out,
-               pretrained=not a.no_pretrained, max_batches=a.max_batches, mlflow_uri=a.mlflow_uri)
+               pretrained=not a.no_pretrained, max_batches=a.max_batches, mlflow_uri=a.mlflow_uri,
+               mlflow_artifacts=a.mlflow_artifacts)
     return cfg
+
+
+# --------------------------------------------------------------------------- MLflow
+def setup_mlflow(cfg: dict, run_name: str, params: dict):
+    """Start an MLflow run. MLflow is optional: any problem only disables it, never the training
+    (all results are written to files anyway)."""
+    try:
+        import mlflow
+    except ImportError:
+        print("MLflow not installed: logging to files only.")
+        return None
+    try:
+        if cfg["mlflow_uri"]:
+            mlflow.set_tracking_uri(cfg["mlflow_uri"])
+        name = cfg["tracking"]["mlflow_experiment"]
+        if cfg["mlflow_artifacts"] and mlflow.get_experiment_by_name(name) is None:
+            mlflow.create_experiment(name, artifact_location=cfg["mlflow_artifacts"])
+        mlflow.set_experiment(name)
+        mlflow.start_run(run_name=run_name)
+        mlflow.log_params(params)
+        return mlflow
+    except Exception as e:
+        print(f"WARNING: MLflow disabled ({type(e).__name__}: {str(e)[:200]}). "
+              "Results are still saved to files.")
+        return None
+
+
+def mlflow_call(mlflow, method: str, *args, **kwargs) -> None:
+    if mlflow is None:
+        return
+    try:
+        getattr(mlflow, method)(*args, **kwargs)
+    except Exception as e:
+        print(f"WARNING: mlflow.{method} failed ({type(e).__name__}: {str(e)[:200]})")
 
 
 # --------------------------------------------------------------------------- helpers
@@ -206,19 +244,9 @@ def main() -> None:
                                    t["epochs"] * steps_per_epoch)
     scaler = torch.amp.GradScaler(device.type, enabled=amp)
 
-    mlflow = None
-    try:
-        import mlflow  # noqa: F811
-        if cfg["mlflow_uri"]:
-            mlflow.set_tracking_uri(cfg["mlflow_uri"])
-        mlflow.set_experiment(cfg["tracking"]["mlflow_experiment"])
-        mlflow.start_run(run_name=run_name)
-        mlflow.log_params({"model": cfg["model"], "strategy": cfg["strategy"],
-                           "timm_name": cfg["timm_name"], "image_size": d["image_size"],
-                           **{k: v for k, v in t.items()}, **info})
-    except ImportError:
-        print("MLflow not installed: logging to files only.")
-        mlflow = None
+    mlflow = setup_mlflow(cfg, run_name, {
+        "model": cfg["model"], "strategy": cfg["strategy"], "timm_name": cfg["timm_name"],
+        "image_size": d["image_size"], **t, **info})
 
     # ---- training loop
     if device.type == "cuda":
@@ -254,8 +282,7 @@ def main() -> None:
         history.append(row)
         print(f"Epoch {epoch:3d}/{t['epochs']} | train loss {row['train_loss']:.4f} acc {row['train_acc']:.3f}"
               f" | val loss {val_loss:.4f} acc {row['val_acc']:.3f} f1 {row['val_f1_macro']:.3f}")
-        if mlflow:
-            mlflow.log_metrics({k: v for k, v in row.items() if k != "epoch"}, step=epoch)
+        mlflow_call(mlflow, "log_metrics", {k: v for k, v in row.items() if k != "epoch"}, step=epoch)
 
         if val_loss < best_loss:  # checkpoint on the best validation loss
             best_loss, best_epoch, patience = val_loss, epoch, 0
@@ -295,11 +322,11 @@ def main() -> None:
                                 digits=3, zero_division=0))
     print(json.dumps(metrics, indent=2))
 
-    if mlflow:
-        mlflow.log_metrics({k: v for k, v in metrics.items() if isinstance(v, (int, float))})
-        for f in ("history.csv", "curves.png", "metrics.json", "confusion_matrix.png", "config.json"):
-            mlflow.log_artifact(str(out / f))
-        mlflow.end_run()
+    mlflow_call(mlflow, "log_metrics",
+                {k: v for k, v in metrics.items() if isinstance(v, (int, float)) and not math.isnan(v)})
+    for f in ("history.csv", "curves.png", "metrics.json", "confusion_matrix.png", "config.json"):
+        mlflow_call(mlflow, "log_artifact", str(out / f))
+    mlflow_call(mlflow, "end_run")
 
 
 if __name__ == "__main__":

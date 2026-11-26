@@ -31,3 +31,5 @@ Thumbs.db
 *.zip
 runs/
 debug_runs/
+mlflow.db
+mlartifacts/
