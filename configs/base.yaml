@@ -1,0 +1,33 @@
+# Shared training conditions — identical for ALL models (professor's requirement:
+# "L'entraînement des différents modèles doit être effectué sous les mêmes conditions").
+# Per-experiment files only override `model` and `strategy` (and LR when justified).
+
+seed: 42
+
+data:
+  splits_dir: data/splits
+  image_size: 224          # all models trained at 224x224 (NFNet-F1 native res is higher: documented trade-off)
+  num_workers: 2
+  normalization: imagenet  # mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225]
+
+train:
+  epochs: 30
+  batch_size: 32           # use grad accumulation for heavy models (NFNet-F1, ViT-B) if OOM
+  optimizer: adamw
+  lr: 1.0e-3               # head / feature extraction
+  lr_backbone: 1.0e-5      # backbone when fine-tuning (discriminative LR)
+  weight_decay: 0.05
+  scheduler: cosine
+  warmup_epochs: 2
+  label_smoothing: 0.1
+  early_stopping_patience: 7
+  mixed_precision: true
+
+# Model: one of scratch_cnn | alexnet | convnextv2 | nfnet_f1 | vit_b16
+model: scratch_cnn
+
+# Strategy: feature_extraction | partial_finetune | full_finetune  (ignored for scratch_cnn)
+strategy: feature_extraction
+
+tracking:
+  mlflow_experiment: road-damage-tl

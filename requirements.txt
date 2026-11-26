@@ -1,0 +1,21 @@
+# Core deep learning (on Kaggle/Colab, torch is already installed)
+torch>=2.2
+torchvision>=0.17
+timm>=1.0
+
+# Data & preprocessing
+albumentations>=1.4
+opencv-python>=4.8
+pillow>=10.0
+numpy>=1.26
+pandas>=2.0
+scikit-learn>=1.4
+
+# Visualisation & explainability
+matplotlib>=3.8
+grad-cam>=1.5
+
+# Experiment tracking & config
+mlflow>=2.10
+pyyaml>=6.0
+tqdm>=4.66
