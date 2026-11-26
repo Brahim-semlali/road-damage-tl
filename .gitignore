@@ -26,3 +26,8 @@ kaggle.json
 Thumbs.db
 .vscode/
 .idea/
+
+# --- Archives / local runs ---
+*.zip
+runs/
+debug_runs/

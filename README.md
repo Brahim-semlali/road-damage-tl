@@ -22,6 +22,21 @@ training time and inference latency. Predictions are explained with Grad-CAM.
 Road Damage Classification and Assessment (Kaggle):
 <https://www.kaggle.com/datasets/prudhvignv/road-damage-classification-and-assessment>
 
+After cleaning: **2,066 images, 4 classes** (road condition levels), stratified split 70/15/15:
+
+| Class | Train | Val | Test | Total |
+|---|---|---|---|---|
+| good | 592 | 126 | 127 | 845 |
+| satisfactory | 358 | 77 | 77 | 512 |
+| poor | 275 | 59 | 59 | 393 |
+| very_poor | 221 | 48 | 47 | 316 |
+| **Total** | **1,446** | **310** | **310** | **2,066** |
+
+> ⚠️ **Dataset bias:** each class comes from a different image source (`good`: 1929×1430 dashcam
+> images; `poor`/`satisfactory`: 600×600 street images; `very_poor`: web photos of various sizes).
+> Models may exploit these source cues instead of the road surface; we check this with Grad-CAM
+> and by analysing the `poor` vs `satisfactory` confusion (same source).
+
 Images are **not** stored in this repository. Only the split files (`data/splits/*.csv`)
 are versioned, so that every team member uses exactly the same train/validation/test images.
 
@@ -77,7 +92,32 @@ python -m src.data.make_splits --raw data/raw
 python -m src.data.eda --raw data/raw
 ```
 
-Training and evaluation commands will be documented here as they are implemented.
+### Training
+
+One script trains every model with every strategy under the same conditions (`configs/base.yaml`):
+
+```bash
+# Baseline CNN from scratch
+python -m src.train --model scratch_cnn --data-root data/raw --out runs
+
+# Pretrained models: alexnet | convnextv2 | nfnet_f1 | vit_b16
+# Strategies: feature_extraction | partial_finetune | full_finetune
+python -m src.train --model convnextv2 --strategy feature_extraction --data-root data/raw --out runs
+
+# Quick sanity check (1 epoch, 2 batches)
+python -m src.train --model alexnet --strategy full_finetune --epochs 1 --max-batches 2
+```
+
+On Colab, use [`notebooks/01_train_colab.ipynb`](notebooks/01_train_colab.ipynb) (choose `MODEL` and
+`STRATEGY` in the first cell). Each run saves its learning curves, confusion matrix, test metrics
+(accuracy, macro precision/recall/F1, AUC), parameter count, training time, peak GPU memory,
+inference latency and test predictions, and logs them to MLflow.
+
+| Strategy | Trainable part (see `src/models/factory.py`) |
+|---|---|
+| Feature extraction | new classification layer only |
+| Partial fine-tuning | last backbone stage + head (AlexNet: last 2 conv + FC layers; ViT: last 4 blocks) |
+| Full fine-tuning | all layers (backbone LR = 1e-5, head LR = 1e-3) |
 
 ## Reproducibility
 
