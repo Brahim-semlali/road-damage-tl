@@ -57,7 +57,7 @@ All experiments are run on Google Colab (free T4 GPU).
 
 1. Open [`notebooks/00_colab_setup.ipynb`](notebooks/00_colab_setup.ipynb) in Colab
    (*File > Open notebook > GitHub*, paste the repository URL).
-2. Add the Colab Secrets `KAGGLE_USERNAME` and `KAGGLE_KEY` (and `GITHUB_TOKEN` if the repo is private).
+2. No setup needed. If Kaggle asks for authentication, log in in the box shown in the cell output.
 3. Run all cells: the notebook mounts Google Drive, clones this repository, downloads the dataset
    (cached on Drive), creates the split and the EDA figures.
 
