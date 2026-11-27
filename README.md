@@ -119,6 +119,18 @@ inference latency and test predictions, and logs them to MLflow.
 | Partial fine-tuning | last backbone stage + head (AlexNet: last 2 conv + FC layers; ViT: last 4 blocks) |
 | Full fine-tuning | all layers (backbone LR = 1e-5, head LR = 1e-3) |
 
+### Comparison and explainability
+
+```bash
+# Global results table, ROC curves, confusion matrices, learning curves, performance vs cost
+python -m src.compare --runs runs --out results
+
+# Grad-CAM (all 5 architectures, incl. ViT) + road-focus ratio, for one run
+python -m src.explain.gradcam --run runs/<model>__<strategy>__<timestamp> --data-root data/raw
+```
+
+On Colab: [`notebooks/02_analysis_colab.ipynb`](notebooks/02_analysis_colab.ipynb).
+
 ## Reproducibility
 
 - Fixed seed (42) for splitting and training.
