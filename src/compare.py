@@ -1,7 +1,7 @@
 """Compare all training runs: global results table + figures for the paper (Section IV).
 
 Reads every ``<runs>/<model>__<strategy>__<timestamp>/`` folder written by ``src.train``
-(the latest run is kept for each model/strategy pair) and writes into ``--out``:
+(GPU runs only; the latest run is kept for each model/strategy pair) and writes into ``--out``:
 
     global_results.csv / .md     table IV.6 (accuracy, precision, recall, F1, AUC, params, time…)
     roc/<model>__<strategy>.png  one-vs-rest ROC curve of every class (+ macro average)
@@ -42,8 +42,11 @@ def collect_runs(runs_dir: Path) -> pd.DataFrame:
     for mfile in runs_dir.glob("*/metrics.json"):
         run = mfile.parent
         model, strategy, stamp = run.name.split("__")
-        rows.append({"model": model, "strategy": strategy, "stamp": stamp, "dir": run,
-                     **json.load(open(mfile))})
+        metrics = json.load(open(mfile))
+        if metrics.get("device", "cpu") == "cpu":
+            print(f"Skipped (trained on CPU, not comparable): {run.name}")
+            continue
+        rows.append({"model": model, "strategy": strategy, "stamp": stamp, "dir": run, **metrics})
     if not rows:
         raise SystemExit(f"No finished run (metrics.json) found in {runs_dir}")
     df = pd.DataFrame(rows).sort_values("stamp").groupby(["model", "strategy"]).tail(1)
