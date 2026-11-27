@@ -1,0 +1,15 @@
+{
+  "model": "scratch_cnn",
+  "strategy": "from_scratch",
+  "road_focus_mean": 0.4687068939208984,
+  "road_focus_per_class": {
+    "good": 0.4102193145301398,
+    "satisfactory": 0.5762213909780824,
+    "poor": 0.3974447073572773,
+    "very_poor": 0.5400638155480648
+  },
+  "road_focus_correct": 0.4646429816364414,
+  "road_focus_errors": 0.521907200190154,
+  "n_test": 310,
+  "n_errors": 22
+}
