@@ -1,15 +1,15 @@
 {
   "model": "convnextv2",
   "strategy": "full_finetune",
-  "road_focus_mean": 0.49836781253257106,
+  "road_focus_mean": 0.49836779784771706,
   "road_focus_per_class": {
-    "good": 0.4783098849020605,
-    "satisfactory": 0.550894869999452,
-    "poor": 0.41752815208697724,
-    "very_poor": 0.567991500839274
+    "good": 0.4783098403159089,
+    "satisfactory": 0.5508948945766919,
+    "poor": 0.4175281408479658,
+    "very_poor": 0.5679914983029061
   },
-  "road_focus_correct": 0.496480289025832,
-  "road_focus_errors": 0.5354891081651052,
+  "road_focus_correct": 0.49648027495812563,
+  "road_focus_errors": 0.535489081343015,
   "n_test": 310,
   "n_errors": 15
 }

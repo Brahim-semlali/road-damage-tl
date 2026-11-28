@@ -1,15 +1,15 @@
 {
   "model": "alexnet",
   "strategy": "partial_finetune",
-  "road_focus_mean": 0.514826357821303,
+  "road_focus_mean": 0.5402402116346263,
   "road_focus_per_class": {
-    "good": 0.5481156467452762,
-    "satisfactory": 0.4218860948821167,
-    "poor": 0.5246898435940177,
-    "very_poor": 0.5647564619145495
+    "good": 0.586073971522136,
+    "satisfactory": 0.38502415567152687,
+    "poor": 0.5906256098868483,
+    "very_poor": 0.6074319202849205
   },
-  "road_focus_correct": 0.52144451049232,
-  "road_focus_errors": 0.37489970134837286,
+  "road_focus_correct": 0.5523594099260565,
+  "road_focus_errors": 0.2840057334729603,
   "n_test": 310,
   "n_errors": 14
 }

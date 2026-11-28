@@ -1,0 +1,15 @@
+{
+  "model": "nfnet_f1",
+  "strategy": "full_finetune",
+  "road_focus_mean": 0.608757307506617,
+  "road_focus_per_class": {
+    "good": 0.6670122845905033,
+    "satisfactory": 0.6315466673294832,
+    "poor": 0.4537551798936674,
+    "very_poor": 0.6085863018289526
+  },
+  "road_focus_correct": 0.6119419105902866,
+  "road_focus_errors": 0.5360013755181661,
+  "n_test": 310,
+  "n_errors": 13
+}

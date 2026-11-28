@@ -15,7 +15,7 @@ under three transfer-learning strategies:
 Models are compared on accuracy, precision, recall, F1-score, ROC/AUC, number of parameters,
 training time and inference latency. Predictions are explained with Grad-CAM.
 
-> **Status:** experiments in progress — 4 of 5 models trained (scratch CNN, AlexNet, ConvNeXtV2, ViT-B/16); NFNet-F1 running. Current results: [`results/global_results.md`](results/global_results.md).
+> **Status:** all 5 models trained (13 configurations, 19 GPU runs). Results: [`results/global_results.md`](results/global_results.md), figures in [`results/`](results/), Grad-CAM in [`results/gradcam/`](results/gradcam/). Next: cross-validation and paper.
 
 ## Dataset
 
