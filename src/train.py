@@ -62,6 +62,11 @@ def load_config() -> dict:
     ap.add_argument("--timm-name", help="override the timm model id (e.g. convnextv2_base)")
     ap.add_argument("--data-root", default="data/raw", help="folder the split CSV paths are relative to")
     ap.add_argument("--out", default="runs", help="output folder (use Google Drive on Colab)")
+    ap.add_argument("--splits-dir", help="folder with train/val/test.csv (default: data.splits_dir of the config; "
+                                         "cross-validation: data/splits/cv/fold<k>)")
+    ap.add_argument("--extra-test", help="optional second test CSV, reported as extra_test_* "
+                                         "(cross-validation: the fixed test set data/splits/test.csv)")
+    ap.add_argument("--tag", default="", help="label added to the MLflow run name and config (e.g. cv_fold0)")
     ap.add_argument("--num-workers", type=int)
     ap.add_argument("--no-pretrained", action="store_true", help="random init (debug only)")
     ap.add_argument("--max-batches", type=int, default=0, help="debug: limit batches per epoch")
@@ -82,12 +87,14 @@ def load_config() -> dict:
             t[key] = val
     if a.num_workers is not None:
         d["num_workers"] = a.num_workers
+    if a.splits_dir:
+        d["splits_dir"] = a.splits_dir
     if cfg["model"] == "scratch_cnn":
         cfg["strategy"] = "from_scratch"
     t["accum_steps"] = a.accum_steps
     cfg.update(timm_name=a.timm_name, data_root=a.data_root, out=a.out,
                pretrained=not a.no_pretrained, max_batches=a.max_batches, mlflow_uri=a.mlflow_uri,
-               mlflow_artifacts=a.mlflow_artifacts)
+               mlflow_artifacts=a.mlflow_artifacts, extra_test=a.extra_test, tag=a.tag)
     return cfg
 
 
@@ -209,9 +216,11 @@ def main() -> None:
 
     run_name = f"{cfg['model']}__{cfg['strategy']}"
     out = Path(cfg["out"]) / f"{run_name}__{datetime.now():%Y%m%d-%H%M%S}"
+    if cfg["tag"]:
+        run_name += f"__{cfg['tag']}"   # MLflow run name only (the folder name format is unchanged)
     out.mkdir(parents=True, exist_ok=True)
     json.dump(cfg, open(out / "config.json", "w"), indent=2)
-    print(f"Run: {run_name} | device: {device} | AMP: {amp} | output: {out}")
+    print(f"Run: {run_name} | device: {device} | AMP: {amp} | splits: {d['splits_dir']} | output: {out}")
 
     # ---- data
     splits = Path(d["splits_dir"])
@@ -246,6 +255,7 @@ def main() -> None:
 
     mlflow = setup_mlflow(cfg, run_name, {
         "model": cfg["model"], "strategy": cfg["strategy"], "timm_name": cfg["timm_name"],
+        "splits_dir": d["splits_dir"], "tag": cfg["tag"],
         "image_size": d["image_size"], **t, **info})
 
     # ---- training loop
@@ -307,6 +317,13 @@ def main() -> None:
                    train_time_s=round(train_time, 1), peak_gpu_mem_mb=round(peak_mem, 1),
                    latency_ms=round(measure_latency(net, device, d["image_size"]), 2),
                    device=torch.cuda.get_device_name(0) if device.type == "cuda" else "cpu")
+    if cfg["extra_test"]:   # e.g. the fixed test set, for the cross-validation models
+        extra_ds = RoadDamageDataset(cfg["extra_test"], cfg["data_root"], eval_transforms(d["image_size"]))
+        _, ey, eprobs = predict(net, DataLoader(extra_ds, shuffle=False, **kw), criterion, device, amp,
+                                cfg["max_batches"])
+        metrics.update({f"extra_{k}": v for k, v in test_metrics(ey, eprobs, classes).items()})
+        np.savez(out / "extra_predictions.npz", y_true=ey, probs=eprobs, classes=np.array(classes),
+                 paths=extra_ds.df.path.values[:len(ey)])
     json.dump(metrics, open(out / "metrics.json", "w"), indent=2)
     np.savez(out / "predictions.npz", y_true=ty, probs=tprobs, classes=np.array(classes),
              paths=test_ds.df.path.values[:len(ty)])

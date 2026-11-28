@@ -131,6 +131,22 @@ python -m src.explain.gradcam --run runs/<model>__<strategy>__<timestamp> --data
 
 On Colab: [`notebooks/02_analysis_colab.ipynb`](notebooks/02_analysis_colab.ipynb).
 
+### Cross-validation
+
+Stratified 5-fold cross-validation on the train+val pool (1,756 images, folds in `data/splits/cv/`).
+For each fold the model is trained on the other folds (15 % of them kept for early stopping) and evaluated
+on the held-out fold, so every pool image is evaluated once; each fold model is also scored on the fixed
+test set (310 images). Configurations: the baseline and the best strategy of the main experiments.
+
+```bash
+python -m src.data.make_folds                       # creates data/splits/cv/ (already versioned)
+python -m src.train --model vit_b16 --strategy full_finetune --splits-dir data/splits/cv/fold0        --extra-test data/splits/test.csv --out runs_cv/fold0 --data-root data/raw
+python -m src.cv_summary --runs runs_cv --out results/cv   # mean ± std, per-fold figure, paired tests
+```
+
+On Colab: [`notebooks/03_cross_validation_colab.ipynb`](notebooks/03_cross_validation_colab.ipynb)
+(resumable, several accounts can run it at the same time).
+
 ## Reproducibility
 
 - Fixed seed (42) for splitting and training.

@@ -10,6 +10,7 @@ pillow>=10.0
 numpy>=1.26
 pandas>=2.0
 scikit-learn>=1.4
+scipy
 
 # Visualisation & explainability
 matplotlib>=3.8
