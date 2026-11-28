@@ -147,12 +147,50 @@ python -m src.cv_summary --runs runs_cv --out results/cv   # mean ± std, per-fo
 On Colab: [`notebooks/03_cross_validation_colab.ipynb`](notebooks/03_cross_validation_colab.ipynb)
 (resumable, several accounts can run it at the same time).
 
+## Training setup (identical for all models)
+
+All runs use [`configs/base.yaml`](configs/base.yaml); only the model and the strategy change.
+
+| Setting | Value |
+|---|---|
+| Input | 224 × 224 RGB, ImageNet normalisation (mean 0.485/0.456/0.406, std 0.229/0.224/0.225) |
+| Augmentation (train only) | resize to 255 + random crop 224, horizontal flip, affine (scale 0.9–1.1, shift ±5 %, rotation ±10°, p=0.5), brightness/contrast ±0.2 (p=0.5), hue/saturation/value (p=0.3), Gaussian blur (p=0.1) |
+| Optimizer | AdamW, weight decay 0.05 |
+| Learning rate | 1e-3 for the new classification head (and for the whole scratch CNN); 1e-5 for unfrozen pretrained layers (discriminative LR) |
+| Schedule | 2 warm-up epochs, then cosine decay (per step) |
+| Batch size | 32 (NFNet-F1: 16 × 2 gradient-accumulation steps = effective 32) |
+| Epochs | max 30, early stopping on validation loss (patience 7); the checkpoint with the lowest validation loss is evaluated |
+| Loss | cross-entropy with inverse-frequency class weights (computed on the training split) and label smoothing 0.1 |
+| Precision | automatic mixed precision (FP16) on GPU |
+| Seed | 42 (split, folds, initialisation, data order) |
+| Validation | fixed stratified split 70/15/15 (test set used once per run, with the best checkpoint) + stratified 5-fold cross-validation |
+
+Strategies (trainable layers, see `src/models/factory.py`): feature extraction = new classification layer only;
+partial fine-tuning = last backbone stage + head (AlexNet: conv4–conv5 + classifier; ViT: last 4 blocks);
+full fine-tuning = all layers.
+
+## Computing environment
+
+- Google Colab, NVIDIA **Tesla T4** GPU (16 GB), one GPU per run (the GPU name is stored in every `metrics.json`).
+- Exact software versions: [`env/environment.md`](env/environment.md) and
+  [`env/requirements-lock.txt`](env/requirements-lock.txt) (`pip install -r env/requirements-lock.txt`).
+  Each run also stores the Python/library/CUDA versions it used in its `config.json` (`environment` field).
+- Pretrained weights: torchvision (AlexNet `IMAGENET1K_V1`) and timm
+  (`convnextv2_tiny.fcmae_ft_in22k_in1k`, `dm_nfnet_f1.dm_in1k`, `vit_base_patch16_224.augreg2_in21k_ft_in1k`).
+
 ## Reproducibility
 
-- Fixed seed (42) for splitting and training.
-- Corrupted images and exact duplicates (MD5) are removed **before** splitting, to avoid train/test leakage.
+- Fixed seed (42) for splitting, cross-validation folds and training.
+- Corrupted images and exact duplicates (MD5) are removed **before** splitting, to avoid train/test leakage;
+  the split and fold CSVs are versioned (`data/splits/`) and checked to be disjoint.
 - All models share the same training conditions (`configs/base.yaml`).
-- Experiments are tracked with MLflow.
+- GPU training is not bit-for-bit deterministic: AlexNet was trained 3 times with the same seed to measure the
+  run-to-run variation (reported as mean ± std in `results/global_results.md`).
+- Experiments are tracked with MLflow (`mlflow.db` + artifacts on the project Google Drive) and every run folder
+  keeps its config, history, curves, metrics and predictions.
+- **Model checkpoints:** the trained weights (`best.pt` of every run: about 5 GB for the main runs, 3 GB for the cross-validation) are too large for
+  GitHub; they are stored on the project Google Drive in `road-damage-tl/runs/<model>__<strategy>__<timestamp>/`
+  (cross-validation: `runs_cv/fold<k>/`). They can be reloaded with `src.explain.gradcam` / `create_model`.
 
 ## Team
 

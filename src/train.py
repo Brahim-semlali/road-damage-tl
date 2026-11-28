@@ -45,6 +45,7 @@ from src.data.dataset import RoadDamageDataset
 from src.data.transforms import eval_transforms, train_transforms
 from src.models.factory import apply_strategy, count_parameters, create_model, param_groups
 from src.utils.seed import set_seed
+from src.utils.env_report import environment_info
 
 
 # --------------------------------------------------------------------------- configuration
@@ -219,6 +220,7 @@ def main() -> None:
     if cfg["tag"]:
         run_name += f"__{cfg['tag']}"   # MLflow run name only (the folder name format is unchanged)
     out.mkdir(parents=True, exist_ok=True)
+    cfg["environment"] = environment_info()      # Python/library versions, CUDA, GPU
     json.dump(cfg, open(out / "config.json", "w"), indent=2)
     print(f"Run: {run_name} | device: {device} | AMP: {amp} | splits: {d['splits_dir']} | output: {out}")
 
