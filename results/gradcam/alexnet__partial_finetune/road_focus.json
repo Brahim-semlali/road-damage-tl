@@ -1,0 +1,15 @@
+{
+  "model": "alexnet",
+  "strategy": "partial_finetune",
+  "road_focus_mean": 0.514826357821303,
+  "road_focus_per_class": {
+    "good": 0.5481156467452762,
+    "satisfactory": 0.4218860948821167,
+    "poor": 0.5246898435940177,
+    "very_poor": 0.5647564619145495
+  },
+  "road_focus_correct": 0.52144451049232,
+  "road_focus_errors": 0.37489970134837286,
+  "n_test": 310,
+  "n_errors": 14
+}

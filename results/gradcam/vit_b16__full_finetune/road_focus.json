@@ -1,0 +1,15 @@
+{
+  "model": "vit_b16",
+  "strategy": "full_finetune",
+  "road_focus_mean": 0.6119446803004511,
+  "road_focus_per_class": {
+    "good": 0.5400830533091477,
+    "satisfactory": 0.7782430766851871,
+    "poor": 0.5586788088588391,
+    "very_poor": 0.6005433296903651
+  },
+  "road_focus_correct": 0.6075958662585124,
+  "road_focus_errors": 0.7199402290085951,
+  "n_test": 310,
+  "n_errors": 12
+}

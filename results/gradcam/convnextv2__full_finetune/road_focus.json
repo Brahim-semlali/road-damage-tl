@@ -1,0 +1,15 @@
+{
+  "model": "convnextv2",
+  "strategy": "full_finetune",
+  "road_focus_mean": 0.49836781253257106,
+  "road_focus_per_class": {
+    "good": 0.4783098849020605,
+    "satisfactory": 0.550894869999452,
+    "poor": 0.41752815208697724,
+    "very_poor": 0.567991500839274
+  },
+  "road_focus_correct": 0.496480289025832,
+  "road_focus_errors": 0.5354891081651052,
+  "n_test": 310,
+  "n_errors": 15
+}

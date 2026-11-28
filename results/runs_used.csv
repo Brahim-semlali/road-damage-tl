@@ -1,0 +1,11 @@
+model,strategy,dir,n_runs,test_f1_macro_mean
+scratch_cnn,from_scratch,/content/drive/MyDrive/road-damage-tl/runs/scratch_cnn__from_scratch__20261126-224512,1,0.9159577092283924
+alexnet,feature_extraction,/content/drive/MyDrive/road-damage-tl/runs/alexnet__feature_extraction__20261127-012112,3,0.9369440859367301
+alexnet,partial_finetune,/content/drive/MyDrive/road-damage-tl/runs/alexnet__partial_finetune__20261126-234250,3,0.9458043162849936
+alexnet,full_finetune,/content/drive/MyDrive/road-damage-tl/runs/alexnet__full_finetune__20261127-005743,3,0.943237648874757
+convnextv2,feature_extraction,/content/drive/MyDrive/road-damage-tl/runs/convnextv2__feature_extraction__20261127-112414,1,0.9168032687504546
+convnextv2,partial_finetune,/content/drive/MyDrive/road-damage-tl/runs/convnextv2__partial_finetune__20261127-113437,1,0.9292264972231951
+convnextv2,full_finetune,/content/drive/MyDrive/road-damage-tl/runs/convnextv2__full_finetune__20261127-140509,1,0.943229253631658
+vit_b16,feature_extraction,/content/drive/MyDrive/road-damage-tl/runs/vit_b16__feature_extraction__20261128-005436,1,0.9353141961837614
+vit_b16,partial_finetune,/content/drive/MyDrive/road-damage-tl/runs/vit_b16__partial_finetune__20261128-010710,1,0.9425901953059043
+vit_b16,full_finetune,/content/drive/MyDrive/road-damage-tl/runs/vit_b16__full_finetune__20261128-011640,1,0.9539295392953929

@@ -1,15 +1,15 @@
 {
   "model": "scratch_cnn",
   "strategy": "from_scratch",
-  "road_focus_mean": 0.4687068939208984,
+  "road_focus_mean": 0.4687068895226525,
   "road_focus_per_class": {
-    "good": 0.4102193145301398,
-    "satisfactory": 0.5762213909780824,
-    "poor": 0.3974447073572773,
-    "very_poor": 0.5400638155480648
+    "good": 0.41021930702089326,
+    "satisfactory": 0.5762213902039961,
+    "poor": 0.39744470293744133,
+    "very_poor": 0.5400638136457889
   },
-  "road_focus_correct": 0.4646429816364414,
-  "road_focus_errors": 0.521907200190154,
+  "road_focus_correct": 0.46464297778180075,
+  "road_focus_errors": 0.5219071886756204,
   "n_test": 310,
   "n_errors": 22
 }
