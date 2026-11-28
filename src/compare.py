@@ -1,7 +1,7 @@
 """Compare all training runs: global results table + figures for the paper (Section IV).
 
 Reads every ``<runs>/<model>__<strategy>__<timestamp>/`` folder written by ``src.train``
-(GPU runs only; the latest run is kept for each model/strategy pair) and writes into ``--out``:
+(GPU runs only; repeated runs of a model/strategy are averaged) and writes into ``--out``:
 
     global_results.csv / .md     table IV.6 (accuracy, precision, recall, F1, AUC, params, time…)
     roc/<model>__<strategy>.png  one-vs-rest ROC curve of every class (+ macro average)
@@ -34,6 +34,8 @@ MODEL_NAMES = {"scratch_cnn": "CNN (scratch)", "alexnet": "AlexNet", "convnextv2
 STRATEGY_ORDER = ["from_scratch", "feature_extraction", "partial_finetune", "full_finetune"]
 STRATEGY_NAMES = {"from_scratch": "From scratch", "feature_extraction": "Feature extraction",
                   "partial_finetune": "Partial fine-tuning", "full_finetune": "Full fine-tuning"}
+METRICS = ["test_accuracy", "test_precision_macro", "test_recall_macro", "test_f1_macro",
+           "test_auc_macro_ovr", "train_time_s"]
 MARKERS = {"from_scratch": "*", "feature_extraction": "o", "partial_finetune": "s", "full_finetune": "^"}
 
 
@@ -49,7 +51,19 @@ def collect_runs(runs_dir: Path) -> pd.DataFrame:
         rows.append({"model": model, "strategy": strategy, "stamp": stamp, "dir": run, **metrics})
     if not rows:
         raise SystemExit(f"No finished run (metrics.json) found in {runs_dir}")
-    df = pd.DataFrame(rows).sort_values("stamp").groupby(["model", "strategy"]).tail(1)
+    all_runs = pd.DataFrame(rows)
+    # Repeated runs of the same model/strategy (same seed, but GPU non-determinism): report the
+    # mean and std of the test metrics, and use the median-F1 run (not the best one) for the figures.
+    keys = ["model", "strategy"]
+    stats = all_runs.groupby(keys).agg(n_runs=("stamp", "size"),
+                                       **{f"{m}_mean": (m, "mean") for m in METRICS},
+                                       **{f"{m}_std": (m, "std") for m in METRICS}).reset_index()
+
+    ranked = all_runs.sort_values(keys + ["test_f1_macro", "stamp"]).reset_index(drop=True)
+    ranked["rank"] = ranked.groupby(keys).cumcount()
+    ranked = ranked.merge(stats[keys + ["n_runs"]], on=keys)
+    df = ranked[ranked["rank"] == (ranked["n_runs"] - 1) // 2].drop(columns=["rank", "n_runs"])
+    df = df.merge(stats, on=keys)
     df["m_order"] = df.model.map({m: i for i, m in enumerate(MODEL_ORDER)}).fillna(99)
     df["s_order"] = df.strategy.map({s: i for i, s in enumerate(STRATEGY_ORDER)}).fillna(99)
     return df.sort_values(["m_order", "s_order"]).reset_index(drop=True)
@@ -59,16 +73,20 @@ def results_table(df: pd.DataFrame, out: Path) -> pd.DataFrame:
     t = pd.DataFrame({
         "Model": df.model.map(MODEL_NAMES).fillna(df.model),
         "Strategy": df.strategy.map(STRATEGY_NAMES).fillna(df.strategy),
-        "Accuracy": df.test_accuracy, "Precision": df.test_precision_macro,
-        "Recall": df.test_recall_macro, "F1-score": df.test_f1_macro, "AUC": df.test_auc_macro_ovr,
+        "Runs": df.n_runs,
+        "Accuracy": df.test_accuracy_mean, "Precision": df.test_precision_macro_mean,
+        "Recall": df.test_recall_macro_mean, "F1-score": df.test_f1_macro_mean,
+        "F1 std": df.test_f1_macro_std, "AUC": df.test_auc_macro_ovr_mean,
         "Params (M)": df.params_total / 1e6, "Trainable (M)": df.params_trainable / 1e6,
-        "Training time (min)": df.train_time_s / 60, "Peak GPU mem (MB)": df.peak_gpu_mem_mb,
+        "Training time (min)": df.train_time_s_mean / 60, "Peak GPU mem (MB)": df.peak_gpu_mem_mb,
         "Latency (ms)": df.latency_ms, "Best epoch": df.best_epoch,
     })
     t.to_csv(out / "global_results.csv", index=False)
-    fmt = t.copy()
+    fmt = t.drop(columns="F1 std").copy()
     for c in ["Accuracy", "Precision", "Recall", "F1-score", "AUC"]:
         fmt[c] = fmt[c].map("{:.4f}".format)
+    has_std = t["F1 std"].notna()
+    fmt.loc[has_std, "F1-score"] = [f"{m:.4f} ± {sd:.4f}" for m, sd in zip(t["F1-score"][has_std], t["F1 std"][has_std])]
     for c in ["Params (M)", "Trainable (M)", "Training time (min)", "Latency (ms)"]:
         fmt[c] = fmt[c].map("{:.2f}".format)
     fmt["Peak GPU mem (MB)"] = fmt["Peak GPU mem (MB)"].map("{:.0f}".format)
@@ -76,6 +94,8 @@ def results_table(df: pd.DataFrame, out: Path) -> pd.DataFrame:
     fmt.loc[best, "F1-score"] = f"**{fmt.loc[best, 'F1-score']}**"
     lines = ["| " + " | ".join(fmt.columns) + " |", "|" + "---|" * len(fmt.columns)]
     lines += ["| " + " | ".join(str(v) for v in r) + " |" for r in fmt.values]
+    lines += ["", "Metrics are the mean over the repeated runs (Runs > 1: mean ± std of the macro F1); "
+              "figures use the median-F1 run of each model/strategy."]
     (out / "global_results.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return t
 
@@ -117,7 +137,7 @@ def plot_roc_per_run(df: pd.DataFrame, out: Path) -> None:
 
 
 def best_per_model(df: pd.DataFrame) -> pd.DataFrame:
-    return df.loc[df.groupby("model").test_f1_macro.idxmax()].sort_values("m_order")
+    return df.loc[df.groupby("model").test_f1_macro_mean.idxmax()].sort_values("m_order")
 
 
 def plot_best_roc(df: pd.DataFrame, out: Path) -> None:
@@ -180,10 +200,10 @@ def plot_cost(df: pd.DataFrame, out: Path) -> None:
     colors = {m: f"C{i}" for i, m in enumerate(MODEL_ORDER)}
     for _, r in df.iterrows():
         kw = dict(color=colors.get(r.model, "k"), marker=MARKERS.get(r.strategy, "x"), s=80)
-        a1.scatter(r.params_trainable / 1e6 + 1e-3, r.test_f1_macro, **kw)
-        a2.scatter(r.train_time_s / 60, r.test_f1_macro, **kw)
-    a1.set(xscale="log", xlabel="Trainable parameters (M, log scale)", ylabel="Test macro F1")
-    a2.set(xlabel="Training time (min)", ylabel="Test macro F1")
+        a1.scatter(r.params_trainable / 1e6 + 1e-3, r.test_f1_macro_mean, **kw)
+        a2.scatter(r.train_time_s_mean / 60, r.test_f1_macro_mean, **kw)
+    a1.set(xscale="log", xlabel="Trainable parameters (M, log scale)", ylabel="Test macro F1 (mean)")
+    a2.set(xlabel="Training time (min)", ylabel="Test macro F1 (mean)")
     for a in (a1, a2):
         a.grid(alpha=0.3)
     handles = [plt.Line2D([], [], color=colors[m], marker="o", ls="", label=MODEL_NAMES[m])
@@ -206,6 +226,8 @@ def main() -> None:
 
     df = collect_runs(args.runs)
     table = results_table(df, args.out)
+    df.assign(dir=df.dir.astype(str))[["model", "strategy", "dir", "n_runs", "test_f1_macro_mean"]].to_csv(
+        args.out / "runs_used.csv", index=False)   # run folders used for the figures (and for Grad-CAM)
     plot_roc_per_run(df, args.out)
     plot_best_roc(df, args.out)
     plot_best_confusions(df, args.out)
